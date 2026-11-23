@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finnish Flip Cards</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card-bg: #1e293b;
+    --front: #1e40af;
+    --back: #065f46;
+    --text: #f1f5f9;
+    --accent: #38bdf8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  h1 { margin-bottom: 8px; font-size: 1.8rem; }
+  .subtitle { color: #94a3b8; margin-bottom: 20px; font-size: 0.95rem; }
+  .progress {
+    width: 100%;
+    max-width: 420px;
+    background: #334155;
+    border-radius: 999px;
+    height: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #38bdf8, #22d3ee);
+    width: 0%;
+    transition: width 0.3s;
+  }
+  .counter { margin-bottom: 16px; color: #cbd5e1; font-size: 0.95rem; }
+  .card-container {
+    perspective: 1000px;
+    width: 100%;
+    max-width: 420px;
+    height: 280px;
+    margin-bottom: 24px;
+  }
+  .card {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+  }
+  .card.flipped { transform: rotateY(180deg); }
+  .card-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  }
+  .card-front { background: var(--front); }
+  .card-back { background: var(--back); transform: rotateY(180deg); }
+  .word { font-size: 1.7rem; font-weight: 700; line-height: 1.3; }
+  .hint { margin-top: 12px; font-size: 0.85rem; opacity: 0.7; }
+  .controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+  button {
+    background: #334155;
+    color: white;
+    border: none;
+    padding: 12px 22px;
+    border-radius: 12px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+  button:hover { background: #475569; }
+  button:active { transform: scale(0.97); }
+  button.primary { background: #0284c7; }
+  button.primary:hover { background: #0369a1; }
+  button.success { background: #059669; }
+  button.success:hover { background: #047857; }
+  .stats {
+    display: flex;
+    gap: 20px;
+    font-size: 0.9rem;
+    color: #94a3b8;
+  }
+  .stats span { font-weight: 600; color: #e2e8f0; }
+  @media (max-width: 480px) {
+    .word { font-size: 1.4rem; }
+    .card-container { height: 240px; }
+  }
+</style>
+</head>
+<body>
+  <h1>Finnish Flip Cards</h1>
+  <p class="subtitle">Click the card to flip • Learn Finnish vocabulary</p>
+  
+  <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+  <div class="counter" id="counter">Card 1 / 120</div>
+  
+  <div class="card-container">
+    <div class="card" id="card" onclick="flipCard()">
+      <div class="card-face card-front">
+        <div class="word" id="frontText">Loading...</div>
+        <div class="hint">Finnish</div>
+      </div>
+      <div class="card-face card-back">
+        <div class="word" id="backText">Translation</div>
+        <div class="hint">English</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="controls">
+    <button onclick="prevCard()">← Previous</button>
+    <button class="primary" onclick="flipCard()">Flip</button>
+    <button onclick="nextCard()">Next →</button>
+  </div>
+  <div class="controls">
+    <button onclick="shuffleDeck()">🔀 Shuffle</button>
+    <button class="success" onclick="markKnown()">✓ I know this</button>
+  </div>
+  
+  <div class="stats">
+    <div>Known: <span id="knownCount">0</span></div>
+    <div>Remaining: <span id="remainingCount">120</span></div>
+  </div>
+
+<script>
+const deck = [
+  { fi: "arvokas", en: "valuable, precious" },
+  { fi: "estää", en: "to prevent, to stop" },
+  { fi: "etupenkki", en: "front seat" },
+  { fi: "hiki", en: "sweat" },
+  { fi: "hukata", en: "to lose, to waste" },
+  { fi: "huomata", en: "to notice" },
+  { fi: "huutokauppa", en: "auction" },
+  { fi: "jarruttaa", en: "to brake" },
+  { fi: "kadota", en: "to disappear" },
+  { fi: "kadottaa", en: "to lose (something)" },
+  { fi: "kiroilla", en: "to swear, to curse" },
+  { fi: "kytkin", en: "switch / clutch" },
+  { fi: "kääntyä", en: "to turn" },
+  { fi: "laki", en: "law" },
+  { fi: "liukua", en: "to slide, to glide" },
+  { fi: "lyödä", en: "to hit, to strike" },
+  { fi: "löytää", en: "to find" },
+  { fi: "nopeusrajoitus", en: "speed limit" },
+  { fi: "nukkua pommiin", en: "to oversleep" },
+  { fi: "nyrkki", en: "fist" },
+  { fi: "omistaja", en: "owner" },
+  { fi: "paikallinen", en: "local" },
+  { fi: "palvella", en: "to serve" },
+  { fi: "palvelu", en: "service" },
+  { fi: "peltipoliisi", en: "speed camera" },
+  { fi: "peruuttaa", en: "to reverse / to cancel" },
+  { fi: "pikkujoulut", en: "office Christmas party" },
+  { fi: "pudota", en: "to fall" },
+  { fi: "puhekieli", en: "spoken language" },
+  { fi: "ratti", en: "steering wheel" },
+  { fi: "risteys", en: "intersection" },
+  { fi: "rutiini", en: "routine" },
+  { fi: "sakko", en: "fine, ticket" },
+  { fi: "selata", en: "to browse, to scroll" },
+  { fi: "säilyttää", en: "to store, to keep" },
+  { fi: "tapahtua", en: "to happen" },
+  { fi: "tapahtuma", en: "event" },
+  { fi: "teline", en: "rack, stand" },
+  { fi: "tuntua", en: "to feel (like)" },
+  { fi: "turvavyö", en: "seatbelt" },
+  { fi: "unohtaa", en: "to forget" },
+  { fi: "uudestaan", en: "again" },
+  { fi: "vaihde", en: "gear" },
+  { fi: "vaihtaa", en: "to change, to switch" },
+  { fi: "verkko", en: "net, network" },
+  { fi: "viittomakieli", en: "sign language" },
+  { fi: "vilkku", en: "turn signal" },
+  { fi: "viranomainen", en: "authority" },
+  { fi: "välittää", en: "to care / to relay" },
+  { fi: "ylinopeus", en: "speeding" },
+  { fi: "uusi", en: "new" },
+  { fi: "vaimo", en: "wife" },
+  { fi: "vain", en: "only" },
+  { fi: "vanha", en: "old" },
+  { fi: "Venäjä", en: "Russia" },
+  { fi: "venäläinen", en: "Russian" },
+  { fi: "vuosi", en: "year" },
+  { fi: "vähän", en: "a little" },
+  { fi: "Yhdysvallat", en: "United States" },
+  { fi: "ymmärtää", en: "to understand" },
+  { fi: "äidinkieli", en: "mother tongue" },
+  { fi: "alkometri", en: "breathalyzer" },
+  { fi: "ambulanssi", en: "ambulance" },
+  { fi: "erinomainen", en: "excellent" },
+  { fi: "haistaa", en: "to smell" },
+  { fi: "hälyttää", en: "to alert" },
+  { fi: "kahvinkeitin", en: "coffee maker" },
+  { fi: "keskussairaala", en: "central hospital" },
+  { fi: "korvaus", en: "compensation" },
+  { fi: "kotitehtävä", en: "homework" },
+  { fi: "lainata", en: "to borrow / lend" },
+  { fi: "liikenne", en: "traffic" },
+  { fi: "lompakko", en: "wallet" },
+  { fi: "loukkaantua", en: "to get injured" },
+  { fi: "moottoritie", en: "motorway" },
+  { fi: "ohjata", en: "to steer" },
+  { fi: "onnellinen", en: "happy" },
+  { fi: "onnettomuus", en: "accident" },
+  { fi: "palokunta", en: "fire brigade" },
+  { fi: "palovaroitin", en: "smoke detector" },
+  { fi: "pelastaja", en: "rescuer" },
+  { fi: "puhaltaa", en: "to blow" },
+  { fi: "salama", en: "lightning" },
+  { fi: "sammuttaa", en: "to extinguish" },
+  { fi: "savu", en: "smoke" },
+  { fi: "selittää", en: "to explain" },
+  { fi: "syttyä", en: "to ignite" },
+  { fi: "tajuton", en: "unconscious" },
+  { fi: "turvallinen", en: "safe" },
+  { fi: "tyytyväinen", en: "satisfied" },
+  { fi: "uutinen", en: "news" },
+  { fi: "vahinko", en: "accident / damage" },
+  { fi: "varastaa", en: "to steal" },
+  { fi: "voimakas", en: "strong" },
+  { fi: "voittaa", en: "to win" },
+  { fi: "kolari", en: "crash / collision" },
+  { fi: "treffit", en: "date (meeting)" },
+  { fi: "aikuiskoulutus", en: "adult education" },
+  { fi: "ajokortti", en: "driving license" },
+  { fi: "ammatti", en: "profession" },
+  { fi: "eläke", en: "pension" },
+  { fi: "haaveilla", en: "to dream" },
+  { fi: "hotelli", en: "hotel" },
+  { fi: "ihailla", en: "to admire" },
+  { fi: "kesätyö", en: "summer job" },
+  { fi: "kielitaito", en: "language skill" },
+  { fi: "kuljettaja", en: "driver" },
+  { fi: "kypärä", en: "helmet" },
+  { fi: "linja-auto", en: "bus" },
+  { fi: "lääkäri", en: "doctor" },
+  { fi: "sairaala", en: "hospital" },
+  { fi: "sopimus", en: "agreement / contract" },
+  { fi: "syntyä", en: "to be born" },
+  { fi: "työtön", en: "unemployed" },
+  { fi: "ymmärtää", en: "to understand" },
+  { fi: "viihtyä", en: "to feel comfortable" },
+  { fi: "virhe", en: "mistake" },
+  { fi: "yliopisto", en: "university" },
+  { fi: "yritys", en: "company / attempt" },
+  { fi: "aina", en: "always" },
+  { fi: "arvata", en: "to guess" },
+  { fi: "hengittää", en: "to breathe" },
+  { fi: "hiljainen", en: "quiet" },
+  { fi: "huolestunut", en: "worried" },
+  { fi: "itkeä", en: "to cry" },
+  { fi: "kohtelias", en: "polite" },
+  { fi: "rehellinen", en: "honest" },
+  { fi: "ehdottaa", en: "to suggest" },
+  { fi: "elämä", en: "life" },
+  { fi: "hautajaiset", en: "funeral" },
+  { fi: "ihana", en: "wonderful" },
+  { fi: "juosta", en: "to run" },
+  { fi: "kastike", en: "sauce" },
+  { fi: "kuolla", en: "to die" },
+  { fi: "lahja", en: "gift" },
+  { fi: "onnistua", en: "to succeed" },
+  { fi: "onnitella", en: "to congratulate" },
+  { fi: "pannukakku", en: "pancake" },
+  { fi: "syntymäpäivät", en: "birthday" },
+  { fi: "tupaantuliaiset", en: "housewarming" },
+  { fi: "aiheuttaa", en: "to cause" },
+  { fi: "aivastaa", en: "to sneeze" },
+  { fi: "flunssa", en: "flu / cold" },
+  { fi: "kuume", en: "fever" },
+  { fi: "lääke", en: "medicine" },
+  { fi: "lääkäri", en: "doctor" },
+  { fi: "potilas", en: "patient" },
+  { fi: "sairaus", en: "illness" },
+  { fi: "sairausloma", en: "sick leave" },
+  { fi: "kipu", en: "pain" },
+  { fi: "nälkä", en: "hunger" },
+  { fi: "oire", en: "symptom" },
+  { fi: "ajaa", en: "to drive" },
+  { fi: "aurinko", en: "sun" },
+  { fi: "hiihtää", en: "to ski" },
+  { fi: "kesä", en: "summer" },
+  { fi: "talvi", en: "winter" },
+  { fi: "sää", en: "weather" },
+  { fi: "sataa", en: "to rain / snow" },
+  { fi: "asunto", en: "apartment" },
+  { fi: "apteekki", en: "pharmacy" },
+  { fi: "kylpyhuone", en: "bathroom" },
+  { fi: "keittiö", en: "kitchen" },
+  { fi: "huonekalu", en: "furniture" },
+  { fi: "kierrättää", en: "to recycle" },
+  { fi: "kaunis", en: "beautiful" },
+  { fi: "kuuma", en: "hot" },
+  { fi: "kylmä", en: "cold" },
+  { fi: "helppo", en: "easy" },
+  { fi: "vaikea", en: "difficult" }
+];
+
+let currentIndex = 0;
+let known = new Set();
+let isFlipped = false;
+
+function updateDisplay() {
+  const card = document.getElementById("card");
+  const item = deck[currentIndex];
+  document.getElementById("frontText").textContent = item.fi;
+  document.getElementById("backText").textContent = item.en;
+  document.getElementById("counter").textContent = `Card ${currentIndex + 1} / ${deck.length}`;
+  document.getElementById("progressBar").style.width = ((currentIndex + 1) / deck.length * 100) + "%";
+  document.getElementById("knownCount").textContent = known.size;
+  document.getElementById("remainingCount").textContent = deck.length - known.size;
+  card.classList.remove("flipped");
+  isFlipped = false;
+}
+
+function flipCard() {
+  document.getElementById("card").classList.toggle("flipped");
+  isFlipped = !isFlipped;
+}
+
+function nextCard() {
+  currentIndex = (currentIndex + 1) % deck.length;
+  updateDisplay();
+}
+
+function prevCard() {
+  currentIndex = (currentIndex - 1 + deck.length) % deck.length;
+  updateDisplay();
+}
+
+function shuffleDeck() {
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  currentIndex = 0;
+  updateDisplay();
+}
+
+function markKnown() {
+  known.add(currentIndex);
+  nextCard();
+}
+
+// Keyboard support
+document.addEventListener("keydown", (e) => {
+  if (e.key === " " || e.key === "Enter") { e.preventDefault(); flipCard(); }
+  if (e.key === "ArrowRight") nextCard();
+  if (e.key === "ArrowLeft") prevCard();
+  if (e.key === "k" || e.key === "K") markKnown();
+});
+
+updateDisplay();
+</script>
+</body>
+</html>
