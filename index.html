@@ -3,13 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Finnish Flip Cards</title>
+<title>Finnish Flip Cards + Quiz</title>
 <style>
   :root {
     --bg: #0f172a;
     --front: #1e40af;
     --back: #065f46;
     --text: #f1f5f9;
+    --accent: #38bdf8;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -23,14 +24,33 @@
     padding: 20px;
   }
   h1 { margin-bottom: 8px; font-size: 1.8rem; }
-  .subtitle { color: #94a3b8; margin-bottom: 20px; font-size: 0.95rem; }
+  .subtitle { color: #94a3b8; margin-bottom: 16px; font-size: 0.95rem; }
+  .mode-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .mode-tabs button {
+    padding: 10px 24px;
+    border-radius: 999px;
+    border: 2px solid #334155;
+    background: transparent;
+    color: #cbd5e1;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+  .mode-tabs button.active {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: white;
+  }
   .progress {
     width: 100%;
     max-width: 420px;
     background: #334155;
     border-radius: 999px;
     height: 8px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     overflow: hidden;
   }
   .progress-bar {
@@ -44,8 +64,8 @@
     perspective: 1000px;
     width: 100%;
     max-width: 420px;
-    height: 280px;
-    margin-bottom: 24px;
+    height: 260px;
+    margin-bottom: 20px;
   }
   .card {
     width: 100%;
@@ -66,26 +86,26 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 30px;
+    padding: 24px;
     text-align: center;
     box-shadow: 0 20px 40px rgba(0,0,0,0.4);
   }
   .card-front { background: var(--front); }
   .card-back { background: var(--back); transform: rotateY(180deg); }
-  .word { font-size: 1.7rem; font-weight: 700; line-height: 1.3; }
-  .hint { margin-top: 12px; font-size: 0.85rem; opacity: 0.7; }
+  .word { font-size: 1.6rem; font-weight: 700; line-height: 1.3; }
+  .hint { margin-top: 10px; font-size: 0.85rem; opacity: 0.7; }
   .controls {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     flex-wrap: wrap;
     justify-content: center;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
   }
   button {
     background: #334155;
     color: white;
     border: none;
-    padding: 12px 22px;
+    padding: 12px 20px;
     border-radius: 12px;
     font-size: 1rem;
     cursor: pointer;
@@ -104,45 +124,92 @@
     color: #94a3b8;
   }
   .stats span { font-weight: 600; color: #e2e8f0; }
+
+  /* Quiz styles */
+  #quizMode { display: none; width: 100%; max-width: 520px; }
+  .quiz-question {
+    background: #1e293b;
+    border-radius: 16px;
+    padding: 28px 20px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .quiz-question .word { font-size: 1.8rem; }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .option {
+    background: #334155;
+    border: 2px solid transparent;
+    border-radius: 12px;
+    padding: 14px 18px;
+    text-align: left;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.15s;
+  }
+  .option:hover { background: #475569; }
+  .option.correct { background: #065f46; border-color: #10b981; }
+  .option.wrong { background: #7f1d1d; border-color: #ef4444; }
+  .option.disabled { pointer-events: none; opacity: 0.7; }
+  .quiz-result {
+    text-align: center;
+    padding: 30px 20px;
+  }
+  .quiz-result h2 { font-size: 2rem; margin-bottom: 8px; }
+  .quiz-result p { color: #94a3b8; margin-bottom: 20px; }
+  .score-big { font-size: 3rem; font-weight: 800; color: #38bdf8; }
   @media (max-width: 480px) {
-    .word { font-size: 1.4rem; }
-    .card-container { height: 240px; }
+    .word { font-size: 1.35rem; }
+    .card-container { height: 220px; }
   }
 </style>
 </head>
 <body>
-  <h1>Finnish Flip Cards</h1>
-  <p class="subtitle">Click the card to flip • 873 words</p>
-  
-  <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
-  <div class="counter" id="counter">Card 1 / 873</div>
-  
-  <div class="card-container">
-    <div class="card" id="card" onclick="flipCard()">
-      <div class="card-face card-front">
-        <div class="word" id="frontText">Loading...</div>
-        <div class="hint">Finnish</div>
-      </div>
-      <div class="card-face card-back">
-        <div class="word" id="backText">Translation</div>
-        <div class="hint">English</div>
+  <h1>Finnish Vocabulary</h1>
+  <p class="subtitle">873 words • Flip cards or take a quiz</p>
+
+  <div class="mode-tabs">
+    <button id="tabFlip" class="active" onclick="setMode('flip')">Flip Cards</button>
+    <button id="tabQuiz" onclick="setMode('quiz')">Quiz (10)</button>
+  </div>
+
+  <!-- Flip Card Mode -->
+  <div id="flipMode">
+    <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="counter" id="counter">Card 1 / 873</div>
+    <div class="card-container">
+      <div class="card" id="card" onclick="flipCard()">
+        <div class="card-face card-front">
+          <div class="word" id="frontText">Loading...</div>
+          <div class="hint">Finnish</div>
+        </div>
+        <div class="card-face card-back">
+          <div class="word" id="backText">Translation</div>
+          <div class="hint">English</div>
+        </div>
       </div>
     </div>
+    <div class="controls">
+      <button onclick="prevCard()">← Previous</button>
+      <button class="primary" onclick="flipCard()">Flip</button>
+      <button onclick="nextCard()">Next →</button>
+    </div>
+    <div class="controls">
+      <button onclick="shuffleDeck()">🔀 Shuffle</button>
+      <button class="success" onclick="markKnown()">✓ I know this</button>
+    </div>
+    <div class="stats">
+      <div>Known: <span id="knownCount">0</span></div>
+      <div>Remaining: <span id="remainingCount">873</span></div>
+    </div>
   </div>
-  
-  <div class="controls">
-    <button onclick="prevCard()">← Previous</button>
-    <button class="primary" onclick="flipCard()">Flip</button>
-    <button onclick="nextCard()">Next →</button>
-  </div>
-  <div class="controls">
-    <button onclick="shuffleDeck()">🔀 Shuffle</button>
-    <button class="success" onclick="markKnown()">✓ I know this</button>
-  </div>
-  
-  <div class="stats">
-    <div>Known: <span id="knownCount">0</span></div>
-    <div>Remaining: <span id="remainingCount">873</span></div>
+
+  <!-- Quiz Mode -->
+  <div id="quizMode">
+    <div id="quizContent"></div>
   </div>
 
 <script>
@@ -1026,6 +1093,23 @@ const deck = [
 let currentIndex = 0;
 let known = new Set();
 let isFlipped = false;
+let mode = 'flip';
+
+// Quiz state
+let quizQuestions = [];
+let quizIndex = 0;
+let quizScore = 0;
+let quizAnswered = false;
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('tabFlip').classList.toggle('active', m === 'flip');
+  document.getElementById('tabQuiz').classList.toggle('active', m === 'quiz');
+  document.getElementById('flipMode').style.display = m === 'flip' ? 'block' : 'none';
+  document.getElementById('quizMode').style.display = m === 'quiz' ? 'block' : 'none';
+  if (m === 'quiz') startQuiz();
+  else updateDisplay();
+}
 
 function updateDisplay() {
   const card = document.getElementById("card");
@@ -1069,7 +1153,88 @@ function markKnown() {
   nextCard();
 }
 
+// Quiz functions
+function startQuiz() {
+  // Pick 10 random unique words
+  const shuffled = [...deck].sort(() => Math.random() - 0.5);
+  quizQuestions = shuffled.slice(0, 10).map(correct => {
+    // Pick 3 wrong answers
+    const wrongs = deck
+      .filter(w => w.fi !== correct.fi)
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 3)
+      .map(w => w.en);
+    const options = [...wrongs, correct.en].sort(() => Math.random() - 0.5);
+    return { fi: correct.fi, correct: correct.en, options };
+  });
+  quizIndex = 0;
+  quizScore = 0;
+  quizAnswered = false;
+  renderQuizQuestion();
+}
+
+function renderQuizQuestion() {
+  const container = document.getElementById('quizContent');
+  if (quizIndex >= quizQuestions.length) {
+    showQuizResult();
+    return;
+  }
+  const q = quizQuestions[quizIndex];
+  const progress = Math.round((quizIndex / quizQuestions.length) * 100);
+  container.innerHTML = `
+    <div class="progress" style="margin-bottom:16px"><div class="progress-bar" style="width:${progress}%"></div></div>
+    <div class="counter">Question ${quizIndex + 1} of ${quizQuestions.length}</div>
+    <div class="quiz-question">
+      <div class="hint" style="margin-bottom:8px">What does this mean?</div>
+      <div class="word">${q.fi}</div>
+    </div>
+    <div class="options">
+      ${q.options.map((opt, i) => `<div class="option" onclick="selectAnswer(${i})">${opt}</div>`).join('')}
+    </div>
+  `;
+  quizAnswered = false;
+}
+
+function selectAnswer(idx) {
+  if (quizAnswered) return;
+  quizAnswered = true;
+  const q = quizQuestions[quizIndex];
+  const options = document.querySelectorAll('.option');
+  const chosen = q.options[idx];
+  const correctIdx = q.options.indexOf(q.correct);
+
+  options.forEach(o => o.classList.add('disabled'));
+  if (chosen === q.correct) {
+    options[idx].classList.add('correct');
+    quizScore++;
+  } else {
+    options[idx].classList.add('wrong');
+    options[correctIdx].classList.add('correct');
+  }
+
+  setTimeout(() => {
+    quizIndex++;
+    renderQuizQuestion();
+  }, 1200);
+}
+
+function showQuizResult() {
+  const container = document.getElementById('quizContent');
+  const pct = Math.round((quizScore / quizQuestions.length) * 100);
+  let msg = pct >= 80 ? "Excellent! 🎉" : pct >= 50 ? "Good job! 👍" : "Keep practicing! 💪";
+  container.innerHTML = `
+    <div class="quiz-result">
+      <div class="score-big">${quizScore} / ${quizQuestions.length}</div>
+      <h2>${msg}</h2>
+      <p>${pct}% correct</p>
+      <button class="primary" onclick="startQuiz()">Try Again</button>
+      <button onclick="setMode('flip')" style="margin-left:10px">Back to Cards</button>
+    </div>
+  `;
+}
+
 document.addEventListener("keydown", (e) => {
+  if (mode !== 'flip') return;
   if (e.key === " " || e.key === "Enter") { e.preventDefault(); flipCard(); }
   if (e.key === "ArrowRight") nextCard();
   if (e.key === "ArrowLeft") prevCard();
