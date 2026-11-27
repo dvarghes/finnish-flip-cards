@@ -1155,10 +1155,24 @@ function markKnown() {
 
 // Quiz functions
 function startQuiz() {
-  // Pick 10 random unique words
-  const shuffled = [...deck].sort(() => Math.random() - 0.5);
+  // Double-shuffle with independent randomness for better variety
+  function fisherYates(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // First shuffle
+  let shuffled = fisherYates(deck);
+  // Second shuffle with fresh entropy
+  shuffled = fisherYates(shuffled);
+
+  // Take the first 10 from the double-shuffled deck
   quizQuestions = shuffled.slice(0, 10).map(correct => {
-    // Pick 3 wrong answers
+    // Pick 3 wrong answers from the remaining deck
     const wrongs = deck
       .filter(w => w.fi !== correct.fi)
       .sort(() => Math.random() - 0.5)
@@ -1167,6 +1181,7 @@ function startQuiz() {
     const options = [...wrongs, correct.en].sort(() => Math.random() - 0.5);
     return { fi: correct.fi, correct: correct.en, options };
   });
+
   quizIndex = 0;
   quizScore = 0;
   quizAnswered = false;
